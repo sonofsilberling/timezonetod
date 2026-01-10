@@ -1,0 +1,80 @@
+{
+  "title": "Time Zone based Times of the Day",
+  "common": {
+    "descr_name": "Sensor Name",
+    "descr_is_child": "Is this a child sensor?",
+    "descr_root": "A root sensor uses its own schedule and timezone.",
+    "descr_child": "A child sensor inherits its schedule from a parent sensor but allows for relative offsets.",
+    "descr_time_zone": "Time zone",
+    "descr_title_root": "Configure Root Sensor",
+    "descr_title_child": "Configure Child Sensor",
+    "descr_start_offset": "Start Offset (Seconds)",
+    "descr_end_offset": "End Offset (Seconds)",
+    "descr_start": "Start Time (HH:MM:SS or 'sunrise'/'sunset')",
+    "descr_end": "End Time (HH:MM:SS or 'sunrise'/'sunset')",
+    "time_zone": "Time zone"
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Identity & Type",
+        "description": "Provide a name for this sensor and decide if it is a standalone (Root) sensor or dependent on another (Child).",
+        "data": {
+          "name": "[%key:component::timezonetod::common::descr_name%]",
+          "is_child": "[%key:component::timezonetod::common::descr_is_child%]"
+        },
+        "data_description": {
+          "name": "[%key:component::timezonetod::common::descr_name%]",
+          "is_child": "[%key:component::timezonetod::common::descr_is_child%]"
+        }
+      },
+      "root": {
+        "title": "Configure Root Sensor",
+        "description": "A root sensor uses its own schedule and timezone.",
+        "data": {
+          "start_time": "Start Time (HH:MM:SS or 'sunrise'/'sunset')",
+          "end_time": "End Time (HH:MM:SS or 'sunrise'/'sunset')",
+          "timezone": "Timezone"
+        }
+      },
+      "child": {
+        "title": "Configure Child Sensor",
+        "description": "A child sensor inherits its schedule from a parent sensor but allows for relative offsets.",
+        "data": {
+          "parent_entity": "Parent Entity",
+          "start_offset": "Start Offset (Seconds)",
+          "end_offset": "End Offset (Seconds)",
+          "start_ref": "Start relates to...",
+          "end_ref": "End relates to..."
+        }
+      }
+    },
+    "error": {
+      "invalid_time_format": "Format error. Use HH:MM:SS or 'sunrise'/'sunset'."
+    },
+    "abort": {
+      "already_configured": "This sensor is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adjust Settings",
+        "description": "Update the timing or offsets for this sensor.",
+        "data": {
+          "start_time": "Start Time",
+          "end_time": "End Time",
+          "timezone": "Timezone",
+          "parent_entity": "Parent Entity",
+          "start_offset": "Start Offset (Seconds)",
+          "end_offset": "End Offset (Seconds)",
+          "start_ref": "Start relates to...",
+          "end_ref": "End relates to..."          
+        }
+      }
+    },
+    "error": {
+      "invalid_time_format": "Format error. Use HH:MM:SS or 'sunrise'/'sunset'."
+    }
+  }
+}

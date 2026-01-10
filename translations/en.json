@@ -1,0 +1,71 @@
+{
+  "title": "Time Zone based Times of the Day",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Identity & Type",
+        "description": "Provide a name for this sensor and decide if it is a standalone (Root) sensor or dependent on another (Child).",
+        "data": {
+          "name": "Sensor Name",
+          "is_child": "Is this a child sensor?"
+        },
+        "data_description": {
+          "name": "Name of the sensor",
+          "is_child": "A Child sensor derives its settings from another sensor."
+        }
+      },
+      "root": {
+        "title": "Configure Root Sensor",
+        "description": "A root sensor uses its own schedule and timezone.",
+        "data": {
+          "start_time": "Start Time",
+          "end_time": "End Time",
+          "timezone": "Time Zone"
+        },
+        "data_description": {
+          "start_time": "HH:MM:SS or 'sunrise'/'sunset'",
+          "end_time": "HH:MM:SS or 'sunrise'/'sunset'",
+          "timezone": "Does not apply to sunrise or sunset"
+        }        
+      },
+      "child": {
+        "title": "Configure Child Sensor",
+        "description": "A child sensor inherits its schedule from a parent sensor but allows for relative offsets.",
+        "data": {
+          "parent_entity": "Parent Entity",
+          "start_offset": "Start Offset (Seconds)",
+          "end_offset": "End Offset (Seconds)",
+          "start_ref": "Start relates to...",
+          "end_ref": "End relates to..."
+        }
+      }
+    },
+    "error": {
+      "invalid_time_format": "Format error. Use HH:MM:SS or 'sunrise'/'sunset'."
+    },
+    "abort": {
+      "already_configured": "This sensor is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adjust Settings",
+        "description": "Update the timing or offsets for this sensor.",
+        "data": {
+          "start_time": "Start Time",
+          "end_time": "End Time",
+          "timezone": "Timezone",
+          "parent_entity": "Parent Entity",
+          "start_offset": "Start Offset (Seconds)",
+          "end_offset": "End Offset (Seconds)",
+          "start_ref": "Start relates to...",
+          "end_ref": "End relates to..."          
+        }
+      }
+    },
+    "error": {
+      "invalid_time_format": "Format error. Use HH:MM:SS or 'sunrise'/'sunset'."
+    }
+  }
+}
