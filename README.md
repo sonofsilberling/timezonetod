@@ -20,7 +20,7 @@ utility night tariffs based on UTC times.
 1. Download the `timezonetod` folder.
 2. Copy the folder to your Home Assistant `custom_components/` directory.
 3. Restart Home Assistant.
-4. Go to **Settings > Devices & Services > Helpers > Add Helper ** and search for "Time Zone based Times of the Day".
+4. Go to **Settings > Devices & Services > Helpers > Create Helper ** and search for "Time Zone based Times of the Day".
 
 ---
 
