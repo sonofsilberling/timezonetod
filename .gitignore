@@ -26,3 +26,4 @@ env/
 # Home Assistant temporary files
 .storage/
 .cloud/
+ha-custom-component.code-workspace
