@@ -1,9 +1,9 @@
-# 🕰️ Timezone-aware Time of Day (ToD) for Home Assistant
+# Timezone-aware Time of Day (ToD) for Home Assistant
 
-A powerful, local-first Home Assistant custom component to create binary sensors that track specific time windows. Unlike the built-in "Times of the Day" helper, this component supports **fixed timezones (e.g., UTC for utility tariffs)** and **relational child sensors**. The main use case for this component is to cater for 
+A Home Assistant custom component to create binary sensors that track specific time windows. Unlike the built-in "Times of the Day" helper, this component supports **fixed timezones (e.g., UTC for utility tariffs)** and **relational child sensors**. The main use case for this component is to cater for 
 utility night tariffs based on UTC times.
 
-## 🌟 Key Features
+## Key Features
 
 - **Timezone Awareness:** Define schedules in any IANA timezone (e.g., `Europe/London`, `UTC`, `America/New_York`) regardless of your Home Assistant server's local time. Perfect for utility tariffs that follow UTC.
 - **Sun Event Support:** Use `sunrise` or `sunset` as start or end points. **Note:** Sunrise and Sunset times are based on home assistant's location and do not take into account the timezone of this component.
@@ -14,7 +14,7 @@ utility night tariffs based on UTC times.
 - **Dynamic Icons:** Automatically switches icons between clocks and suns based on your configuration.
 - **Developer Ready:** Includes a standalone logic core (`entity.py`) with 100% pass-rate unit tests.
 
-## 🚀 Installation
+## Installation
 
 ### Manual Installation
 1. Download the `timezonetod` folder.
@@ -24,7 +24,7 @@ utility night tariffs based on UTC times.
 
 ---
 
-## 📖 Configuration
+## Configuration
 
 ### Root Sensor
 A Root Sensor is a standalone schedule.
@@ -48,7 +48,7 @@ A Child Sensor inherits its boundaries from a Root Sensor.
 
 ---
 
-## 🛠 Developer & Unit Testing
+## Developer & Unit Testing
 This integration is built with a decoupled logic core (`entity.py`), allowing the time calculation engine to be tested independently of the Home Assistant state machine.
 
 To run the tests on your local machine or via SSH:
