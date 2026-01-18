@@ -14,8 +14,8 @@ from homeassistant.util import dt as dt_util
 
 # Selectors
 from homeassistant.helpers.selector import (
-    EntitySelector,
-    EntitySelectorConfig,
+    # EntitySelector,
+    # EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -210,6 +210,8 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
     """Options flow to allow editing the sensor after creation."""
 
+    VERSION = 1    
+
     # def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
     #     self.config_entry = config_entry
     async def _get_valid_parents(self):
@@ -233,6 +235,7 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         errors = {}
+        current_config = {**self.config_entry.data, **self.config_entry.options}
         ref_selector = SelectSelector(
             SelectSelectorConfig(
                 options=[
@@ -244,7 +247,7 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
         )
         if user_input is not None:
             # Apply same validation as Config Flow
-            if not self.config_entry.data.get(CONF_IS_CHILD):
+            if not current_config.get(CONF_IS_CHILD):
                 if not validate_time_format(user_input[CONF_START_TIME]):
                     errors[CONF_START_TIME] = "invalid_time_format"
                 if not validate_time_format(user_input[CONF_END_TIME]):
@@ -253,7 +256,7 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
             if not errors:
                 return self.async_create_entry(title="", data=user_input)
 
-        is_child = self.config_entry.data.get(CONF_IS_CHILD, False)
+        is_child = current_config.get(CONF_IS_CHILD, False)
 
         get_timezones: list[str] = list(
             await self.hass.async_add_executor_job(zoneinfo.available_timezones)
@@ -270,11 +273,11 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Required(
                         CONF_START_REF,
-                        default=self.config_entry.data.get(CONF_START_REF, REF_START),
+                        default=current_config.get(CONF_START_REF, REF_START),
                     ): ref_selector,
                     vol.Required(
                         CONF_START_OFFSET,
-                        default=self.config_entry.data.get(CONF_START_OFFSET, 0),
+                        default=current_config.get(CONF_START_OFFSET, 0),
                     ): NumberSelector(
                         NumberSelectorConfig(
                             mode=NumberSelectorMode.BOX, unit_of_measurement="seconds"
@@ -282,11 +285,11 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Required(
                         CONF_END_REF,
-                        default=self.config_entry.data.get(CONF_END_REF, REF_END),
+                        default=current_config.get(CONF_END_REF, REF_END),
                     ): ref_selector,
                     vol.Required(
                         CONF_END_OFFSET,
-                        default=self.config_entry.data.get(CONF_END_OFFSET, 0),
+                        default=current_config.get(CONF_END_OFFSET, 0),
                     ): NumberSelector(
                         NumberSelectorConfig(
                             mode=NumberSelectorMode.BOX, unit_of_measurement="seconds"
@@ -299,13 +302,13 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
                 {
                     vol.Required(
                         CONF_START_TIME,
-                        default=self.config_entry.data.get(CONF_START_TIME),
+                        default=current_config.get(CONF_START_TIME),
                     ): TextSelector(),
                     vol.Required(
-                        CONF_END_TIME, default=self.config_entry.data.get(CONF_END_TIME)
+                        CONF_END_TIME, default=current_config.get(CONF_END_TIME)
                     ): TextSelector(),
                     vol.Optional(
-                        CONF_TIMEZONE, default=self.config_entry.data.get(CONF_TIMEZONE)
+                        CONF_TIMEZONE, default=current_config.get(CONF_TIMEZONE)
                     ): SelectSelector(
                         SelectSelectorConfig(
                             options=get_timezones,

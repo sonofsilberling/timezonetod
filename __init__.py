@@ -20,6 +20,8 @@ PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Timezone Time of Day from a config entry."""
     _LOGGER.debug("Setting up config entry: %s", entry.title)
+
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     
     # This function tells Home Assistant to forward the setup process
     # to the 'binary_sensor' platform. It will then look for a
@@ -37,3 +39,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     
     return unload_ok
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
