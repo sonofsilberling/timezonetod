@@ -1,11 +1,11 @@
 {
   "domain": "timezonetod",
   "name": "Time Zone based Times of the Day",
-  "codeowners": [],
+  "codeowners": ["sonofsilberling"],
   "config_flow": true,
-  "documentation": "",
+  "documentation": "https://github.com/sonofsilberling/timezonetod",
   "integration_type": "helper",
   "iot_class": "local_push",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "loggers": ["custom_components.timezonetod"]
 }

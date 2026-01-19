@@ -108,7 +108,7 @@ class TimezoneTodSensor(BinarySensorEntity):
             ATTR_END_TIME_UTC: self._core.calculated_end_utc.isoformat(),
             ATTR_NEXT_UPDATE_UTC: self._core.next_update_utc.isoformat(),
             ATTR_IS_CHILD: self._core.is_child,
-            ATTR_PARENT_ENTITY: self._core.parent_entity_id,
+            ATTR_PARENT_ENTITY: self._core.parent_entity_id if self._core.parent_entity_id else "Not Applicable",
             ATTR_TIMEZONE: self._core.timezone_name or "Default (System)",
         }
 

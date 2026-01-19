@@ -48,7 +48,7 @@ A Child Sensor inherits its boundaries from a Root Sensor.
 
 ---
 
-## Developer & Unit Testing
+##    Developer & Unit Testing
 This integration is built with a decoupled logic core (`entity.py`), allowing the time calculation engine to be tested independently of the Home Assistant state machine.
 
 To run the tests on your local machine or via SSH:
