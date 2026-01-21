@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import time, timedelta, datetime, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from typing import Optional, Any, Dict
+from typing import Optional, Any #, Dict
 
 
 class TimezoneTodSensorCore:
@@ -160,6 +160,8 @@ class TimezoneTodSensorCore:
 
         def get_window(ref_date):
             """Helper to resolve boundaries for a specific date."""
+            if self._configured_start is None or self._configured_end is None:
+                raise ValueError("Start or end time is not configured")
             s = self._resolve_time(
                 self._configured_start, ref_date, tz, sun_event_callback
             )
@@ -201,7 +203,7 @@ class TimezoneTodSensorCore:
             self._calculate_next_update(now_utc)
             return True
 
-        except Exception:
+        except (ValueError, TypeError):
             return False
 
     def _resolve_time(
@@ -223,9 +225,14 @@ class TimezoneTodSensorCore:
         try:
             # We use a simple split to support HH:MM or HH:MM:SS
             parts = [int(p) for p in config_val.split(":")]
-            t = time(*parts)
-        except Exception:
-            raise ValueError(f"Invalid time: {config_val}")
+            if len(parts) == 2:
+                t = time(parts[0], parts[1])
+            elif len(parts) == 3:
+                t = time(parts[0], parts[1], parts[2])
+            else:
+                raise ValueError(f"Invalid time format: {config_val}")
+        except Exception as exc:
+            raise ValueError(f"Invalid time: {config_val}") from exc
 
         # 2. Combine with reference date and timezone
         local_dt = datetime.combine(ref_date, t).replace(tzinfo=tz)
@@ -233,6 +240,10 @@ class TimezoneTodSensorCore:
 
     def _calculate_next_update(self, now_utc: datetime) -> None:
         """Determines when the state will next transition."""
+        if self._calculated_start_utc is None or self._calculated_end_utc is None:
+            self._next_update_utc = None
+            return
+
         if now_utc < self._calculated_start_utc:
             self._next_update_utc = self._calculated_start_utc
         elif now_utc < self._calculated_end_utc:

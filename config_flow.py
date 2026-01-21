@@ -7,7 +7,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import Platform, CONF_NAME
+from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.util import dt as dt_util
@@ -85,7 +85,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         _LOGGER.info("Starting step user")
 
-        """Step 1: Basic Identity."""
+        # """Step 1: Basic Identity."""
         if user_input is not None:
             self._data.update(user_input)
             if user_input.get(CONF_IS_CHILD):
