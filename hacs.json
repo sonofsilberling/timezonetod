@@ -1,5 +1,7 @@
 {
   "name": "Timezone Time of Day",
   "render_readme": true,
-  "homeassistant": "2024.1.0"
+  "domains": ["binary_sensor"],
+  "iot_class": "local_push",
+  "homeassistant": "2026.1.0"
 }
