@@ -1,4 +1,4 @@
-# binary_sensor.py
+"""Timezone Time of Day Sensor binary sensor for Home Assistant."""
 
 from __future__ import annotations
 import logging
@@ -27,6 +27,8 @@ from .const import (
     CONF_TIMEZONE,
     CONF_PARENT_ENTITY,
     CONF_IS_CHILD,
+    CONF_START_REF,
+    CONF_END_REF,
     ATTR_START_TIME_LOCAL,
     ATTR_END_TIME_LOCAL,
     ATTR_NEXT_UPDATE_LOCAL,
@@ -35,9 +37,7 @@ from .const import (
     ATTR_NEXT_UPDATE_UTC,
     ATTR_IS_CHILD,
     ATTR_PARENT_ENTITY,
-    ATTR_TIMEZONE,
-    CONF_START_REF,
-    CONF_END_REF,
+    ATTR_TIMEZONE,  # , DOMAIN
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,21 +46,38 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the TimezoneTodSensor binary sensor entry."""
+    """Set up the TimezoneTodSensor binary sensor entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The config entry containing the sensor configuration.
+        async_add_entities: The callback to add entities to the platform.
+    """
     async_add_entities([TimezoneTodSensor(hass, entry)])
 
 
 class TimezoneTodSensor(BinarySensorEntity):
-    """The Home Assistant entity wrapper for the Timezone Time of Day Sensor."""
+    """The Home Assistant entity wrapper for the Timezone Time of Day Sensor.
+
+    This class handles the integration with Home Assistant's state machine,
+    managing timers, listeners, and attribute formatting.
+    """
 
     _attr_should_poll = False
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        """Initialize the sensor."""
+        """Initialize the sensor.
+
+        Combines config entry data and options to initialize the core logic.
+
+        Args:
+            hass: The Home Assistant instance.
+            entry: The config entry providing data and options.
+        """
         self.hass = hass
         self.entry = entry
 
-        # Merge data and options
+        # Merge data and options (options override data)
         conf = {**entry.data, **entry.options}
 
         self._core = TimezoneTodSensorCore(
@@ -70,10 +87,10 @@ class TimezoneTodSensor(BinarySensorEntity):
             end_time=conf.get(CONF_END_TIME),
             start_offset=timedelta(seconds=conf.get(CONF_START_OFFSET, 0)),
             end_offset=timedelta(seconds=conf.get(CONF_END_OFFSET, 0)),
-            start_ref=conf.get(CONF_START_REF, "start"),
-            end_ref=conf.get(CONF_END_REF, "end"),
             timezone_str=conf.get(CONF_TIMEZONE),
             parent_entity_id=conf.get(CONF_PARENT_ENTITY),
+            start_ref=conf.get(CONF_START_REF, "start"),
+            end_ref=conf.get(CONF_END_REF, "end"),
         )
 
         self._attr_name = self._core.name
@@ -82,16 +99,29 @@ class TimezoneTodSensor(BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        """Return True if the sensor is on."""
+        """Return True if the sensor is currently active.
+
+        Returns:
+            bool: The active state determined by the core logic.
+        """
         return self._core.is_on(dt_util.utcnow())
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return the state attributes of the sensor."""
-        if not self._core.calculated_start_utc or not self._core.calculated_end_utc:
+        """Return the state attributes of the sensor.
+
+        Calculates localized and UTC timestamps for display in the UI.
+
+        Returns:
+            dict[str, Any] | None: Attribute dictionary or None if not yet calculated.
+        """
+        if (
+            not self._core.calculated_start_utc
+            or not self._core.calculated_end_utc
+            or not self._core.next_update_utc
+        ):
             return None
 
-        # Convert to the default local timezone for user-friendly display
         local_tz = dt_util.get_default_time_zone()
 
         return {
@@ -103,83 +133,94 @@ class TimezoneTodSensor(BinarySensorEntity):
             ).isoformat(),
             ATTR_NEXT_UPDATE_LOCAL: self._core.next_update_utc.astimezone(
                 local_tz
-            ).isoformat() if self._core.next_update_utc else None,
+            ).isoformat(),
             ATTR_START_TIME_UTC: self._core.calculated_start_utc.isoformat(),
             ATTR_END_TIME_UTC: self._core.calculated_end_utc.isoformat(),
-            ATTR_NEXT_UPDATE_UTC: self._core.next_update_utc.isoformat() if self._core.next_update_utc else None,
+            ATTR_NEXT_UPDATE_UTC: self._core.next_update_utc.isoformat(),
             ATTR_IS_CHILD: self._core.is_child,
-            ATTR_PARENT_ENTITY: self._core.parent_entity_id if self._core.parent_entity_id else "Not Applicable",
+            ATTR_PARENT_ENTITY: self._core.parent_entity_id,
             ATTR_TIMEZONE: self._core.timezone_name or "Default (System)",
         }
 
     @property
     def icon(self) -> str:
-        """Return the icon to use in the frontend."""
-        # 1. Child Sensor Icon
-        if self._core.is_child:
-            return "mdi:clock-edit-outline"  # "Edit" implies an adjustment/offset to a parent
+        """Return the icon to use in the frontend based on configuration and state.
 
-        # 2. Sun-based Sensor Icon
-        # Check if either start or end is a sun event
+        Returns:
+            str: MDI icon string.
+        """
+        is_on = self.is_on
+
+        if self._core.is_child:
+            return "mdi:clock-check" if is_on else "mdi:clock-edit-outline"
+
         conf = {**self.entry.data, **self.entry.options}
         start = conf.get(CONF_START_TIME, "")
         end = conf.get(CONF_END_TIME, "")
 
         if any(event in (start, end) for event in ("sunrise", "sunset")):
-            return "mdi:sun-clock"
+            return "mdi:weather-sunny" if is_on else "mdi:weather-night"
 
-        # 3. Default Time-based Sensor Icon
-        return "mdi:clock-outline"
+        return "mdi:clock" if is_on else "mdi:clock-outline"
 
     async def async_added_to_hass(self) -> None:
-        """Handle entity which is added to Home Assistant."""
+        """Handle entity being added to Home Assistant.
+
+        Sets up state listeners for child sensors and performs initial calculation.
+        """
         await super().async_added_to_hass()
 
         if self._core.is_child:
-            # Listen to parent state changes
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass, [self._core.parent_entity_id], self._handle_parent_update
                 )
             )
 
-        # Initial calculation
         await self._update_and_reschedule()
 
     @callback
-    def _handle_parent_update(self, _: Event) -> None:
-        """Callback for parent entity changes."""
+    def _handle_parent_update(self, _event: Event) -> None:
+        """Callback for parent entity changes with debounce logic.
+
+        Args:
+            _event: The state change event from the parent entity.
+        """
         _LOGGER.debug(
             "%s: Parent %s changed, scheduling debounced update.",
             self.name,
             self._core.parent_entity_id,
         )
-        # Check if the event actually contains a state change (not just attributes)
-        # but in our case, we usually WANT to trigger on attribute changes.
-
-        # We use async_create_task to run our debounced update
         self.hass.async_create_task(self._debounced_update())
 
     async def _debounced_update(self) -> None:
-        """Wait for the state machine to settle and then update."""
-        # 100ms is usually enough for the parent's write to finish and propagate
+        """Wait for the state machine to settle and then update.
+
+        This prevents race conditions when both parent and child are initializing.
+        """
         await asyncio.sleep(0.1)
         await self._update_and_reschedule()
 
     @callback
     def _scheduled_update(self, _now: datetime) -> None:
-        """Callback for the scheduled point-in-time transition."""
+        """Callback for the scheduled point-in-time transition.
+
+        Args:
+            _now: The current time provided by the timer event.
+        """
         self.hass.async_create_task(self._update_and_reschedule())
 
     async def _update_and_reschedule(self) -> None:
-        """Main calculation loop."""
+        """The main calculation loop.
+
+        Updates boundaries from the core logic, writes state, and schedules
+         the next point-in-time update.
+        """
         now_utc = dt_util.utcnow()
         parent_attrs = None
 
-        # 1. Gather Parent Data if child
         if self._core.is_child:
             parent_state = self.hass.states.get(self._core.parent_entity_id)
-            # GUARD: Ensure parent exists and has the required attributes
             if not parent_state:
                 _LOGGER.debug(
                     "%s: Parent %s not yet available.",
@@ -188,25 +229,28 @@ class TimezoneTodSensor(BinarySensorEntity):
                 )
                 return
 
-            # GUARD: Check for our specific UTC attributes
             if ATTR_START_TIME_UTC not in parent_state.attributes:
                 _LOGGER.debug(
                     "%s: Parent %s has no UTC attributes yet.",
                     self.name,
                     self._core.parent_entity_id,
                 )
-                # If the parent is a timezonetod sensor, it might still be calculating.
-                # We stop here; when the parent finishes, it will trigger another event.
                 return
 
             parent_attrs = parent_state.attributes
 
-        # 2. Setup Sun Callback
-        # We wrap HA's get_astral_event_date to match the Core's signature
         def get_sun_dt(event: str, target_date: date) -> datetime | None:
+            """Wrapper for Home Assistant sun event calculation.
+
+            Args:
+                event: Solar event name ('sunrise' or 'sunset').
+                target_date: The date for which to calculate the event.
+
+            Returns:
+                datetime | None: The UTC datetime of the event or None if failed.
+            """
             return get_astral_event_date(self.hass, event, target_date)
 
-        # 3. Update Core Logic
         success = self._core.update_boundaries(
             now_utc=now_utc,
             default_timezone=dt_util.get_default_time_zone(),
@@ -215,13 +259,11 @@ class TimezoneTodSensor(BinarySensorEntity):
         )
 
         if not success:
-            _LOGGER.error("Failed to calculate boundaries for %s", self.name)
+            _LOGGER.debug("Failed to calculate boundaries for %s", self.name)
             return
 
-        # 4. Finalize HA State
         self.async_write_ha_state()
 
-        # 5. Handle Timer
         if self._unsub_update:
             self._unsub_update()
             self._unsub_update = None
