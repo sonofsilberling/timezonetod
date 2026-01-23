@@ -1,4 +1,4 @@
-# entity.py
+"""Core Logic for Timezone Time of Day Sensor"""
 
 from __future__ import annotations
 from datetime import time, timedelta, datetime, tzinfo
@@ -10,7 +10,7 @@ from collections.abc import Callable
 class TimezoneTodSensorCore:
     """Core logic for the Timezone Time of Day sensor.
 
-    This class provides framework-agnostic logic for calculating time-of-day 
+    This class provides framework-agnostic logic for calculating time-of-day
     boundaries, making it suitable for both Home Assistant and independent unit testing.
     It supports root sensors (fixed/solar) and child sensors (relational to parent).
     """
@@ -127,7 +127,7 @@ class TimezoneTodSensorCore:
     ) -> bool:
         """Recalculate the start, end, and next transition timestamps.
 
-        Handles the transition logic for both root and child sensors, 
+        Handles the transition logic for both root and child sensors,
         accounting for crossing midnight and relational offsets.
 
         Args:
@@ -144,7 +144,7 @@ class TimezoneTodSensorCore:
             self._resolved_timezone_str = self._configured_timezone_str or str(
                 default_timezone
             )
-        
+
         tz = default_timezone
         if not self._is_child and self._configured_timezone_str:
             try:
@@ -193,8 +193,12 @@ class TimezoneTodSensorCore:
             """Helper to resolve boundaries for a specific date."""
             if self._configured_start is None or self._configured_end is None:
                 raise ValueError("Start or end time is not configured")
-            s = self._resolve_time(self._configured_start, ref_date, tz, sun_event_callback)
-            e = self._resolve_time(self._configured_end, ref_date, tz, sun_event_callback)
+            s = self._resolve_time(
+                self._configured_start, ref_date, tz, sun_event_callback
+            )
+            e = self._resolve_time(
+                self._configured_end, ref_date, tz, sun_event_callback
+            )
 
             s += self._start_offset
             e += self._end_offset
