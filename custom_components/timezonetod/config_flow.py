@@ -52,10 +52,15 @@ def validate_time_format(value: str) -> bool:
     return dt_util.parse_time(value) is not None
 
 
-class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class TimezoneTodConfigFlow(config_entries.ConfigFlow):
     """Config flow for the Timezone Time of Day sensor."""
 
     VERSION = 1
+
+    @staticmethod
+    def is_matching(config_entry: config_entries.ConfigEntry) -> bool:
+        """Return whether this flow matches a config entry."""
+        return config_entry.domain == DOMAIN
 
     def __init__(self):
         """Initialize the config flow."""
@@ -210,7 +215,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
     """Options flow to allow editing the sensor after creation."""
 
-    VERSION = 1    
+    VERSION = 1
 
     # def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
     #     self.config_entry = config_entry
