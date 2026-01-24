@@ -16,7 +16,14 @@ utility night tariffs based on UTC times.
 
 ## Installation
 
-### Manual Installation
+### Option 1: HACS (Recommended)
+1. Open **HACS** in Home Assistant.
+2. Click the three dots in the top right and select **Custom repositories**.
+3. Paste `https://github.com/sonofsilberling/timezonetod` and select **Integration** as the category.
+4. Click **Add**, then find "Timezone Time of Day" in the list and click **Download**.
+5. Restart Home Assistant.
+
+### Option 2: Manual
 1. Download the `timezonetod` folder.
 2. Copy the folder to your Home Assistant `custom_components/` directory.
 3. Restart Home Assistant.
