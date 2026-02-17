@@ -45,7 +45,14 @@ _LOGGER = logging.getLogger(__name__)
 _TIMEZONES: list[str] | None = None
 
 def _get_timezones() -> list[str]:
-    """Get the list of timezones."""
+    """Get the list of available timezones.
+    
+    Lazily loads and caches the list of IANA timezones from the zoneinfo module.
+    The list is sorted alphabetically for easier selection in the UI.
+    
+    Returns:
+        list[str]: Sorted list of timezone names (e.g., 'America/New_York', 'UTC').
+    """
     global _TIMEZONES
     if _TIMEZONES is None:
         _TIMEZONES = sorted(zoneinfo.available_timezones())
@@ -53,13 +60,37 @@ def _get_timezones() -> list[str]:
 
 # Helper for validation
 def validate_time_format(value: str) -> bool:
-    """Check if the string is 'sunrise', 'sunset', or a valid HH:MM:SS."""
+    """Validate that a time string is in an acceptable format.
+    
+    Accepts three formats:
+    - 'sunrise': Solar sunrise event
+    - 'sunset': Solar sunset event  
+    - HH:MM:SS or HH:MM: Standard time format (parsed by dt_util.parse_time)
+    
+    Args:
+        value: The time string to validate.
+        
+    Returns:
+        bool: True if the format is valid, False otherwise.
+    """
     if value in ("sunrise", "sunset"):
         return True
     return dt_util.parse_time(value) is not None
 
 async def _get_valid_parents(hass):
-    """Fetch entities from this integration that are not children."""
+    """Fetch valid parent entities for child sensors.
+    
+    Retrieves all entities from this integration that are root sensors (not children)
+    and formats them for display in a selector dropdown. Only root sensors can be
+    parents since child sensors cannot have their own children.
+    
+    Args:
+        hass: The Home Assistant instance.
+        
+    Returns:
+        list[dict]: List of options with 'value' (entity_id) and 'label' (friendly name)
+                    suitable for use in a SelectSelector.
+    """
     registry = er.async_get(hass)
     options = []
     for entry in registry.entities.values():
@@ -76,13 +107,33 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self):
-        """Initialize the config flow."""
+        """Initialize the config flow.
+        
+        Sets up an empty data dictionary to accumulate configuration values
+        across multiple steps of the flow (user -> root/child -> create entry).
+        """
         self._data = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial user step."""
+        """Handle the initial user step: sensor identity and type selection.
+        
+        This is the first step in the configuration flow where the user provides:
+        - A unique name for the sensor
+        - Whether it's a root sensor (standalone) or child sensor (dependent)
+        
+        The flow validates that no sensor with the same name already exists,
+        then routes to either async_step_root or async_step_child based on
+        the is_child flag.
+        
+        Args:
+            user_input: Dictionary containing CONF_NAME and CONF_IS_CHILD, or None
+                       if this is the first display of the form.
+                       
+        Returns:
+            FlowResult: Either a form to display or a redirect to the next step.
+        """
         errors: dict[str, str] = {}
         _LOGGER.debug("Starting step user")
 
@@ -113,7 +164,23 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_root(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 2 (Root): Configure Time and Timezone."""
+        """Configure a root sensor's schedule and timezone.
+        
+        Root sensors define their own time boundaries using:
+        - Start time: HH:MM:SS format or 'sunrise'/'sunset'
+        - End time: HH:MM:SS format or 'sunrise'/'sunset'
+        - Timezone: IANA timezone string (defaults to system timezone)
+        
+        The times are validated using validate_time_format(). If validation passes,
+        the config entry is created with all accumulated data from previous steps.
+        
+        Args:
+            user_input: Dictionary containing CONF_START_TIME, CONF_END_TIME, and
+                       optionally CONF_TIMEZONE, or None for initial form display.
+                       
+        Returns:
+            FlowResult: Either a form with errors or a created config entry.
+        """
         errors = {}
         _LOGGER.debug("Starting step root")
         if user_input is not None:
@@ -163,7 +230,26 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_child(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 2 (Child): Configure Parent and Offsets."""
+        """Configure a child sensor's parent relationship and time offsets.
+        
+        Child sensors inherit their time boundaries from a parent root sensor,
+        but can apply relative offsets. Configuration includes:
+        - Parent entity: Must be a root sensor from this integration
+        - Start reference: Whether child start relates to parent's start or end
+        - Start offset: Seconds to add/subtract from the reference point
+        - End reference: Whether child end relates to parent's start or end  
+        - End offset: Seconds to add/subtract from the reference point
+        
+        This allows creating sensors like "30 minutes before parent ends" or
+        "1 hour after parent starts".
+        
+        Args:
+            user_input: Dictionary containing parent entity and offset configuration,
+                       or None for initial form display.
+                       
+        Returns:
+            FlowResult: Either a form to display or a created config entry.
+        """
         _LOGGER.debug("Starting step child")
         ref_selector = SelectSelector(
             SelectSelectorConfig(
@@ -208,15 +294,50 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> TimezoneTodOptionsFlow:
-        return TimezoneTodOptionsFlow()
+        """Create an options flow handler for this config entry.
+        
+        Called by Home Assistant when the user wants to edit an existing sensor's
+        configuration. Returns an instance of TimezoneTodOptionsFlow to handle
+        the options editing process.
+        
+        Args:
+            config_entry: The existing config entry to be edited.
+            
+        Returns:
+            TimezoneTodOptionsFlow: The options flow handler instance.
+        """
 
 
 class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
-    """Options flow to allow editing the sensor after creation."""
+    """Options flow to allow editing the sensor after creation.
+    
+    Provides a UI for users to modify an existing sensor's configuration without
+    deleting and recreating it. The available options depend on whether the sensor
+    is a root sensor (time/timezone settings) or child sensor (parent/offset settings).
+    
+    The sensor's type (root vs child) cannot be changed after creation.
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        """Handle the options flow initialization step.
+        
+        Presents a form with fields appropriate to the sensor type:
+        - Root sensors: Can edit start_time, end_time, and timezone
+        - Child sensors: Can edit parent_entity, offsets, and reference points
+        
+        The form is pre-populated with current values from the config entry's
+        data and options (options override data). Validation is applied to time
+        formats for root sensors.
+        
+        Args:
+            user_input: Dictionary containing updated configuration values, or None
+                       for initial form display.
+                       
+        Returns:
+            FlowResult: Either a form with current values/errors or an updated entry.
+        """
         errors = {}
         current_config = {**self.config_entry.data, **self.config_entry.options}
         ref_selector = SelectSelector(

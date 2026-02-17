@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback, Event
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
+    async_call_later,
     async_track_point_in_utc_time,
     async_track_state_change_event,
 )
@@ -37,7 +38,7 @@ from .const import (
     ATTR_NEXT_UPDATE_UTC,
     ATTR_IS_CHILD,
     ATTR_PARENT_ENTITY,
-    ATTR_TIMEZONE,  # , DOMAIN
+    ATTR_TIMEZONE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ class TimezoneTodSensor(BinarySensorEntity):
         self._attr_name = self._core.name
         self._attr_unique_id = entry.entry_id
         self._unsub_update = None
+        self._unsub_debounce = None
         
         # Cache icon-relevant config to avoid repeated dict merging
         self._conf_start_time = conf.get(CONF_START_TIME, "")
