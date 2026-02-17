@@ -18,7 +18,23 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Timezone Time of Day from a config entry."""
+    """Set up Timezone Time of Day from a config entry.
+    
+    This is the main entry point called by Home Assistant when the integration is loaded.
+    It performs the following tasks:
+    1. Registers an update listener to handle options changes
+    2. Forwards the setup to all supported platforms (binary_sensor)
+    
+    The update listener ensures that when a user modifies the sensor's configuration
+    through the options flow, the sensor is automatically reloaded with the new settings.
+    
+    Args:
+        hass: The Home Assistant instance.
+        entry: The config entry containing the sensor's configuration data.
+        
+    Returns:
+        bool: True if setup was successful, False otherwise.
+    """
     _LOGGER.debug("Setting up config entry: %s", entry.title)
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
@@ -32,7 +48,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
+    """Unload a config entry.
+    
+    Called when the integration is being removed or reloaded. This function ensures
+    proper cleanup by unloading all platforms (binary_sensor) associated with this
+    config entry.
+    
+    This is important for:
+    - Removing the sensor from Home Assistant's state machine
+    - Canceling any scheduled callbacks or timers
+    - Freeing up resources
+    
+    Args:
+        hass: The Home Assistant instance.
+        entry: The config entry to unload.
+        
+    Returns:
+        bool: True if unload was successful, False if any platform failed to unload.
+    """
     _LOGGER.debug("Unloading config entry: %s", entry.title)
     
     # This unloads the platforms (e.g., your binary_sensor).
@@ -41,5 +74,21 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
+    """Handle options update by reloading the config entry.
+    
+    This function is called automatically when a user updates the sensor's configuration
+    through the options flow. It triggers a full reload of the config entry, which:
+    1. Unloads the existing sensor (calling async_unload_entry)
+    2. Reloads the sensor with the updated configuration (calling async_setup_entry)
+    
+    This ensures that configuration changes take effect immediately without requiring
+    a Home Assistant restart.
+    
+    Args:
+        hass: The Home Assistant instance.
+        entry: The config entry that was updated.
+        
+    Returns:
+        None
+    """
     await hass.config_entries.async_reload(entry.entry_id)

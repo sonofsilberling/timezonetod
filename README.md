@@ -60,16 +60,22 @@ This integration is built with a decoupled logic core (`entity.py`), allowing th
 
 To run the tests on your local machine or via SSH:
 ```bash
-cd custom_components/timezonetod/
 python3 test.py
+```
+Or using the unittest module:
+```bash
+python3 -m unittest test
 ```
 This requires Python version 3.9 or later.
 
 ## Attributes
 The sensor exposes several useful attributes for debugging and use in templates:
-- start_time_local: The current window's start time in your HA local time.
-- end_time_local: The current window's end time in your HA local time.
-- start_time_utc: Absolute UTC timestamp for the window start.
-- end_time_utc: Absolute UTC timestamp for the window end.
-- timezone: The timezone being tracked.
-- is_child: Boolean indicating if this is a relational sensor.
+- `start_time_local`: The current window's start time in your HA local time.
+- `end_time_local`: The current window's end time in your HA local time.
+- `next_update_local`: The next scheduled state transition in your HA local time.
+- `start_time_utc`: Absolute UTC timestamp for the window start.
+- `end_time_utc`: Absolute UTC timestamp for the window end.
+- `next_update_utc`: The next scheduled state transition in UTC.
+- `timezone`: The timezone being tracked.
+- `is_child`: Boolean indicating if this is a relational sensor.
+- `parent_entity`: The parent entity ID (only for child sensors).

@@ -71,6 +71,12 @@ class TimezoneTodSensor(BinarySensorEntity):
         """Initialize the sensor.
 
         Combines config entry data and options to initialize the core logic.
+        The core logic is framework-agnostic and handles all time calculations,
+        while this wrapper manages Home Assistant integration (state updates,
+        timers, event listeners).
+        
+        Configuration values from entry.options take precedence over entry.data,
+        allowing users to update settings through the options flow.
 
         Args:
             hass: The Home Assistant instance.
@@ -117,10 +123,17 @@ class TimezoneTodSensor(BinarySensorEntity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor.
 
-        Calculates localized and UTC timestamps for display in the UI.
+        Provides detailed timing information in both local and UTC timezones,
+        which is useful for:
+        - Debugging sensor behavior
+        - Creating automation templates
+        - Displaying timing information in the UI
+        
+        Returns None if boundaries haven't been calculated yet (e.g., during
+        initial setup or if parent sensor is not available).
 
         Returns:
-            dict[str, Any] | None: Attribute dictionary or None if not yet calculated.
+            dict[str, Any] | None: Attribute dictionary with timing info, or None if not yet calculated.
         """
         if (
             not self._core.calculated_start_utc
@@ -152,6 +165,11 @@ class TimezoneTodSensor(BinarySensorEntity):
     @property
     def icon(self) -> str:
         """Return the icon to use in the frontend based on configuration and state.
+        
+        Icon selection logic:
+        - Child sensors: clock-check (on) / clock-edit-outline (off)
+        - Solar sensors (sunrise/sunset): weather-sunny (on) / weather-night (off)
+        - Time-based sensors: clock (on) / clock-outline (off)
 
         Returns:
             str: MDI icon string.
@@ -169,7 +187,13 @@ class TimezoneTodSensor(BinarySensorEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Handle entity being removed from Home Assistant.
 
-        Cleans up any pending timers.
+        Called when the sensor is being removed from HA, either because:
+        - The integration is being unloaded
+        - The config entry is being deleted
+        - Home Assistant is shutting down
+        
+        Ensures proper cleanup by canceling any pending timer callbacks
+        to prevent orphaned tasks or memory leaks.
         """
         await super().async_will_remove_from_hass()
         self._cancel_timer()
@@ -177,7 +201,13 @@ class TimezoneTodSensor(BinarySensorEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity being added to Home Assistant.
 
-        Sets up state listeners for child sensors and performs initial calculation.
+        Called when the sensor is first added to HA. This method:
+        1. Registers cleanup callbacks for proper shutdown
+        2. Sets up state change listeners for child sensors to track their parent
+        3. Performs the initial boundary calculation and schedules the first update
+        
+        For child sensors, a state change listener is registered to monitor the
+        parent entity and trigger updates when the parent's boundaries change.
         """
         await super().async_added_to_hass()
 
@@ -196,9 +226,15 @@ class TimezoneTodSensor(BinarySensorEntity):
     @callback
     def _handle_parent_update(self, _event: Event) -> None:
         """Callback for parent entity changes with debounce logic.
+        
+        This callback is triggered whenever the parent entity's state changes.
+        To avoid excessive recalculations when the parent updates multiple times
+        in quick succession (e.g., during initialization), a 0.1 second debounce
+        is applied. Each new parent update cancels the previous pending update
+        and schedules a new one.
 
         Args:
-            _event: The state change event from the parent entity.
+            _event: The state change event from the parent entity (unused).
         """
         _LOGGER.debug(
             "%s: Parent %s changed, scheduling debounced update.",
@@ -212,33 +248,51 @@ class TimezoneTodSensor(BinarySensorEntity):
         )
 
     def _cancel_timer(self) -> None:
+        """Cancel any pending scheduled update timer.
+        
+        This method is called during cleanup to prevent orphaned callbacks.
+        It safely cancels the timer subscription if one exists and clears
+        the reference to prevent double-cancellation.
+        
+        This is important for:
+        - Proper shutdown when the sensor is removed
+        - Preventing duplicate timers when rescheduling updates
+        - Avoiding memory leaks from uncanceled callbacks
+        """
         if self._unsub_update:
             self._unsub_update()
             self._unsub_update = None
 
-
-    async def _debounced_update(self) -> None:
-        """Wait for the state machine to settle and then update.
-
-        This prevents race conditions when both parent and child are initializing.
-        """
-        await asyncio.sleep(0.1)
-        await self._update_and_reschedule()
-
     @callback
     def _scheduled_update(self, _now: datetime) -> None:
         """Callback for the scheduled point-in-time transition.
+        
+        This callback is invoked by Home Assistant's event loop at the exact
+        time when the sensor should transition state (either turn on or off).
+        It creates an async task to perform the boundary recalculation and
+        state update.
 
         Args:
-            _now: The current time provided by the timer event.
+            _now: The current time provided by the timer event (unused, we use utcnow()).
         """
         self.hass.async_create_task(self._update_and_reschedule())
 
     async def _update_and_reschedule(self) -> None:
         """The main calculation loop.
 
-        Updates boundaries from the core logic, writes state, and schedules
-         the next point-in-time update.
+        This is the core update method that:
+        1. Gathers required data (current time, parent attributes for child sensors)
+        2. Calls the core logic to recalculate time boundaries
+        3. Updates the sensor's state in Home Assistant
+        4. Schedules the next update at the calculated transition time
+        
+        For child sensors, this method validates that the parent entity exists
+        and has the required UTC time attributes before proceeding. If the parent
+        is not ready, the update is skipped (it will be retried when the parent
+        updates).
+        
+        For root sensors, this method provides a sun event callback to resolve
+        sunrise/sunset times if configured.
         """
         now_utc = dt_util.utcnow()
         parent_attrs = None
@@ -265,13 +319,17 @@ class TimezoneTodSensor(BinarySensorEntity):
 
         def get_sun_dt(event: str, target_date: date) -> datetime | None:
             """Wrapper for Home Assistant sun event calculation.
+            
+            Provides a simple interface for the core logic to request sunrise/sunset
+            times without depending on Home Assistant directly. This maintains the
+            separation between the framework-agnostic core and the HA integration.
 
             Args:
                 event: Solar event name ('sunrise' or 'sunset').
                 target_date: The date for which to calculate the event.
 
             Returns:
-                datetime | None: The UTC datetime of the event or None if failed.
+                datetime | None: The UTC datetime of the event or None if calculation failed.
             """
             return get_astral_event_date(self.hass, event, target_date)
 

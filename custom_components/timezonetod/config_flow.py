@@ -104,8 +104,6 @@ async def _get_valid_parents(hass):
 class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for the Timezone Time of Day sensor."""
 
-    VERSION = 1
-
     def __init__(self):
         """Initialize the config flow.
         
