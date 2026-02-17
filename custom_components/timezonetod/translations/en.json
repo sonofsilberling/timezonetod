@@ -26,7 +26,7 @@
           "start_time": "HH:MM:SS or 'sunrise'/'sunset'",
           "end_time": "HH:MM:SS or 'sunrise'/'sunset'",
           "timezone": "Does not apply to sunrise or sunset"
-        }        
+        }
       },
       "child": {
         "title": "Configure Child Sensor",
@@ -60,7 +60,7 @@
           "start_offset": "Start Offset (Seconds)",
           "end_offset": "End Offset (Seconds)",
           "start_ref": "Start relates to...",
-          "end_ref": "End relates to..."          
+          "end_ref": "End relates to..."
         }
       }
     },

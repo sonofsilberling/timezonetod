@@ -10,12 +10,11 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 # Selectors
 from homeassistant.helpers.selector import (
-    # EntitySelector,
-    # EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -43,6 +42,14 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_TIMEZONES: list[str] | None = None
+
+def _get_timezones() -> list[str]:
+    """Get the list of timezones."""
+    global _TIMEZONES
+    if _TIMEZONES is None:
+        _TIMEZONES = sorted(zoneinfo.available_timezones())
+    return _TIMEZONES
 
 # Helper for validation
 def validate_time_format(value: str) -> bool:
@@ -51,47 +58,42 @@ def validate_time_format(value: str) -> bool:
         return True
     return dt_util.parse_time(value) is not None
 
+async def _get_valid_parents(hass):
+    """Fetch entities from this integration that are not children."""
+    registry = er.async_get(hass)
+    options = []
+    for entry in registry.entities.values():
+        if entry.platform == DOMAIN:
+            state = hass.states.get(entry.entity_id)
+            if state and state.attributes.get(ATTR_IS_CHILD) is False:
+                label = state.attributes.get('friendly_name') or entry.entity_id
+                options.append({'value': entry.entity_id, 'label': label})
+    return options
 
-class TimezoneTodConfigFlow(config_entries.ConfigFlow):
+class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for the Timezone Time of Day sensor."""
 
     VERSION = 1
 
-    @staticmethod
-    def is_matching(config_entry: config_entries.ConfigEntry) -> bool:
-        """Return whether this flow matches a config entry."""
-        return config_entry.domain == DOMAIN
-
     def __init__(self):
         """Initialize the config flow."""
         self._data = {}
-
-    async def _get_valid_parents(self):
-        """Fetch entities from this integration that are not children."""
-        states = self.hass.states.async_all()
-        options = []
-
-        for state in states:
-            # Check if the entity belongs to our domain
-            # and if it has the ATTR_IS_CHILD attribute set to False
-            if state.entity_id.startswith("binary_sensor."):
-                is_child = state.attributes.get(ATTR_IS_CHILD)
-                # Only include if it's explicitly not a child (or lacks the attr)
-                if is_child is False:
-                    label = state.attributes.get("friendly_name") or state.entity_id
-                    options.append({"value": state.entity_id, "label": label})
-
-        return options
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial user step."""
         errors: dict[str, str] = {}
-        _LOGGER.info("Starting step user")
+        _LOGGER.debug("Starting step user")
 
         # """Step 1: Basic Identity."""
         if user_input is not None:
+            # Check if a sensor with this name already exists
+            name = user_input[CONF_NAME]
+            for entry in self._async_current_entries():
+                if entry.data.get(CONF_NAME) == name:
+                    return self.async_abort(reason="already_configured")
+            
             self._data.update(user_input)
             if user_input.get(CONF_IS_CHILD):
                 return await self.async_step_child()
@@ -113,7 +115,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow):
     ) -> FlowResult:
         """Step 2 (Root): Configure Time and Timezone."""
         errors = {}
-        _LOGGER.info("Starting step root")
+        _LOGGER.debug("Starting step root")
         if user_input is not None:
             # Validate the time inputs
             if not validate_time_format(user_input[CONF_START_TIME]):
@@ -127,12 +129,10 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow):
                     title=self._data[CONF_NAME], data=self._data
                 )
 
-        # Build a list of timezones for the selector
-        get_timezones: list[str] = list(
-            await self.hass.async_add_executor_job(zoneinfo.available_timezones)
-        )
+        # Build a sorted list of timezones for the selector
+        get_timezones = _get_timezones()
 
-        _LOGGER.info("Got timezones")
+        _LOGGER.debug("Got timezones")
 
         root_schema = vol.Schema(
             {
@@ -149,13 +149,12 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow):
                         multiple=False,
                         options=get_timezones,
                         mode=SelectSelectorMode.DROPDOWN,
-                        sort=True,
                     )
                 ),
             }
         )
 
-        _LOGGER.info("Setup root schema")
+        _LOGGER.debug("Setup root schema")
 
         return self.async_show_form(
             step_id="root", data_schema=root_schema, errors=errors
@@ -165,7 +164,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Step 2 (Child): Configure Parent and Offsets."""
-        _LOGGER.info("Starting step child")
+        _LOGGER.debug("Starting step child")
         ref_selector = SelectSelector(
             SelectSelectorConfig(
                 options=[
@@ -175,7 +174,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow):
                 mode=SelectSelectorMode.DROPDOWN,
             )
         )
-        valid_parents = await self._get_valid_parents()
+        valid_parents = await _get_valid_parents(self.hass)
         if user_input is not None:
             self._data.update(user_input)
             return self.async_create_entry(title=self._data[CONF_NAME], data=self._data)
@@ -215,27 +214,6 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow):
 class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
     """Options flow to allow editing the sensor after creation."""
 
-    VERSION = 1
-
-    # def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-    #     self.config_entry = config_entry
-    async def _get_valid_parents(self):
-        """Fetch entities from this integration that are not children."""
-        states = self.hass.states.async_all()
-        options = []
-
-        for state in states:
-            # Check if the entity belongs to our domain
-            # and if it has the ATTR_IS_CHILD attribute set to False
-            if state.entity_id.startswith("binary_sensor."):
-                is_child = state.attributes.get(ATTR_IS_CHILD)
-                # Only include if it's explicitly not a child (or lacks the attr)
-                if is_child is False:
-                    label = state.attributes.get("friendly_name") or state.entity_id
-                    options.append({"value": state.entity_id, "label": label})
-
-        return options
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -263,12 +241,10 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
 
         is_child = current_config.get(CONF_IS_CHILD, False)
 
-        get_timezones: list[str] = list(
-            await self.hass.async_add_executor_job(zoneinfo.available_timezones)
-        )
+        get_timezones = _get_timezones()
 
         if is_child:
-            valid_parents = await self._get_valid_parents()
+            valid_parents = await _get_valid_parents(self.hass)
             schema = vol.Schema(
                 {
                     vol.Required(CONF_PARENT_ENTITY): SelectSelector(

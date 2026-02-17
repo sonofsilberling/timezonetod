@@ -13,7 +13,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# List of supported he platforms
+# List of supported platforms
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
 

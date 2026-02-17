@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, time, timedelta, date
 from zoneinfo import ZoneInfo
-from entity import TimezoneTodSensorCore
+from custom_components.timezonetod.entity import TimezoneTodSensorCore
 
 # Mock Sun Callback
 def mock_sun_callback(event, ref_date):

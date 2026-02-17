@@ -7,7 +7,6 @@ DOMAIN = "timezonetod"
 
 # --- Configuration Constants ---
 # These are the keys used in your config_flow and config_entry data.
-CONF_NAME = "name"
 CONF_START_TIME = "start_time"
 CONF_END_TIME = "end_time"
 CONF_START_OFFSET = "start_offset"

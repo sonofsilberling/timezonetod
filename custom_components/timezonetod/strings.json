@@ -1,80 +1,71 @@
 {
   "title": "Time Zone based Times of the Day",
-  "common": {
-    "descr_name": "Sensor Name",
-    "descr_is_child": "Is this a child sensor?",
-    "descr_root": "A root sensor uses its own schedule and timezone.",
-    "descr_child": "A child sensor inherits its schedule from a parent sensor but allows for relative offsets.",
-    "descr_time_zone": "Time zone",
-    "descr_title_root": "Configure Root Sensor",
-    "descr_title_child": "Configure Child Sensor",
-    "descr_start_offset": "Start Offset (Seconds)",
-    "descr_end_offset": "End Offset (Seconds)",
-    "descr_start": "Start Time (HH:MM:SS or 'sunrise'/'sunset')",
-    "descr_end": "End Time (HH:MM:SS or 'sunrise'/'sunset')",
-    "time_zone": "Time zone"
-  },
   "config": {
     "step": {
       "user": {
-        "title": "Identity & Type",
-        "description": "Provide a name for this sensor and decide if it is a standalone (Root) sensor or dependent on another (Child).",
+        "title": "[%key:component::timezonetod::config::step::user::title%]",
+        "description": "[%key:component::timezonetod::config::step::user::description%]",
         "data": {
-          "name": "[%key:component::timezonetod::common::descr_name%]",
-          "is_child": "[%key:component::timezonetod::common::descr_is_child%]"
+          "name": "[%key:component::timezonetod::config::step::user::data::name%]",
+          "is_child": "[%key:component::timezonetod::config::step::user::data::is_child%]"
         },
         "data_description": {
-          "name": "[%key:component::timezonetod::common::descr_name%]",
-          "is_child": "[%key:component::timezonetod::common::descr_is_child%]"
+          "name": "[%key:component::timezonetod::config::step::user::data_description::name%]",
+          "is_child": "[%key:component::timezonetod::config::step::user::data_description::is_child%]"
         }
       },
       "root": {
-        "title": "Configure Root Sensor",
-        "description": "A root sensor uses its own schedule and timezone.",
+        "title": "[%key:component::timezonetod::config::step::root::title%]",
+        "description": "[%key:component::timezonetod::config::step::root::description%]",
         "data": {
-          "start_time": "Start Time (HH:MM:SS or 'sunrise'/'sunset')",
-          "end_time": "End Time (HH:MM:SS or 'sunrise'/'sunset')",
-          "timezone": "Timezone"
+          "start_time": "[%key:component::timezonetod::config::step::root::data::start_time%]",
+          "end_time": "[%key:component::timezonetod::config::step::root::data::end_time%]",
+          "timezone": "[%key:component::timezonetod::config::step::root::data::timezone%]"
+        },
+        "data_description": {
+          "start_time": "[%key:component::timezonetod::config::step::root::data_description::start_time%]",
+          "end_time": "[%key:component::timezonetod::config::step::root::data_description::end_time%]",
+          "timezone": "[%key:component::timezonetod::config::step::root::data_description::timezone%]"
         }
       },
       "child": {
-        "title": "Configure Child Sensor",
-        "description": "A child sensor inherits its schedule from a parent sensor but allows for relative offsets.",
+        "title": "[%key:component::timezonetod::config::step::child::title%]",
+        "description": "[%key:component::timezonetod::config::step::child::description%]",
         "data": {
-          "parent_entity": "Parent Entity",
-          "start_offset": "Start Offset (Seconds)",
-          "end_offset": "End Offset (Seconds)",
-          "start_ref": "Start relates to...",
-          "end_ref": "End relates to..."
+          "parent_entity": "[%key:component::timezonetod::config::step::child::data::parent_entity%]",
+          "start_offset": "[%key:component::timezonetod::config::step::child::data::start_offset%]",
+          "end_offset": "[%key:component::timezonetod::config::step::child::data::end_offset%]",
+          "start_ref": "[%key:component::timezonetod::config::step::child::data::start_ref%]",
+          "end_ref": "[%key:component::timezonetod::config::step::child::data::end_ref%]"
         }
       }
     },
     "error": {
-      "invalid_time_format": "Format error. Use HH:MM:SS or 'sunrise'/'sunset'."
+      "invalid_time_format": "[%key:component::timezonetod::config::error::invalid_time_format%]"
     },
     "abort": {
-      "already_configured": "This sensor is already configured."
+      "already_configured": "[%key:component::timezonetod::config::abort::already_configured%]"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Adjust Settings",
-        "description": "Update the timing or offsets for this sensor.",
+        "title": "[%key:component::timezonetod::options::step::init::title%]",
+        "description": "[%key:component::timezonetod::options::step::init::description%]",
         "data": {
-          "start_time": "Start Time",
-          "end_time": "End Time",
-          "timezone": "Timezone",
-          "parent_entity": "Parent Entity",
-          "start_offset": "Start Offset (Seconds)",
-          "end_offset": "End Offset (Seconds)",
-          "start_ref": "Start relates to...",
-          "end_ref": "End relates to..."          
+          "start_time": "[%key:component::timezonetod::options::step::init::data::start_time%]",
+          "end_time": "[%key:component::timezonetod::options::step::init::data::end_time%]",
+          "timezone": "[%key:component::timezonetod::options::step::init::data::timezone%]",
+          "parent_entity": "[%key:component::timezonetod::options::step::init::data::parent_entity%]",
+          "start_offset": "[%key:component::timezonetod::options::step::init::data::start_offset%]",
+          "end_offset": "[%key:component::timezonetod::options::step::init::data::end_offset%]",
+          "start_ref": "[%key:component::timezonetod::options::step::init::data::start_ref%]",
+          "end_ref": "[%key:component::timezonetod::options::step::init::data::end_ref%]"
         }
       }
     },
     "error": {
-      "invalid_time_format": "Format error. Use HH:MM:SS or 'sunrise'/'sunset'."
+      "invalid_time_format": "[%key:component::timezonetod::options::error::invalid_time_format%]"
     }
   }
 }

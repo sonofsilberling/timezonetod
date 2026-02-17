@@ -18,8 +18,8 @@ from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import dt as dt_util
 
 from .entity import TimezoneTodSensorCore
+from homeassistant.const import CONF_NAME
 from .const import (
-    CONF_NAME,
     CONF_START_TIME,
     CONF_END_TIME,
     CONF_START_OFFSET,
@@ -64,6 +64,7 @@ class TimezoneTodSensor(BinarySensorEntity):
     """
 
     _attr_should_poll = False
+    _attr_has_entity_name = True
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the sensor.
@@ -96,6 +97,10 @@ class TimezoneTodSensor(BinarySensorEntity):
         self._attr_name = self._core.name
         self._attr_unique_id = entry.entry_id
         self._unsub_update = None
+        
+        # Cache icon-relevant config to avoid repeated dict merging
+        self._conf_start_time = conf.get(CONF_START_TIME, "")
+        self._conf_end_time = conf.get(CONF_END_TIME, "")
 
     @property
     def is_on(self) -> bool:
@@ -154,14 +159,18 @@ class TimezoneTodSensor(BinarySensorEntity):
         if self._core.is_child:
             return "mdi:clock-check" if is_on else "mdi:clock-edit-outline"
 
-        conf = {**self.entry.data, **self.entry.options}
-        start = conf.get(CONF_START_TIME, "")
-        end = conf.get(CONF_END_TIME, "")
-
-        if any(event in (start, end) for event in ("sunrise", "sunset")):
+        if any(event in (self._conf_start_time, self._conf_end_time) for event in ("sunrise", "sunset")):
             return "mdi:weather-sunny" if is_on else "mdi:weather-night"
 
         return "mdi:clock" if is_on else "mdi:clock-outline"
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity being removed from Home Assistant.
+
+        Cleans up any pending timers.
+        """
+        await super().async_will_remove_from_hass()
+        self._cancel_timer()
 
     async def async_added_to_hass(self) -> None:
         """Handle entity being added to Home Assistant.
@@ -169,6 +178,9 @@ class TimezoneTodSensor(BinarySensorEntity):
         Sets up state listeners for child sensors and performs initial calculation.
         """
         await super().async_added_to_hass()
+
+        # Track timer for cleanup on removal
+        self.async_on_remove(self._cancel_timer)
 
         if self._core.is_child:
             self.async_on_remove(
@@ -191,7 +203,17 @@ class TimezoneTodSensor(BinarySensorEntity):
             self.name,
             self._core.parent_entity_id,
         )
-        self.hass.async_create_task(self._debounced_update())
+        if self._unsub_debounce:
+            self._unsub_debounce()
+        self._unsub_debounce = async_call_later(
+            self.hass, 0.1, self._scheduled_update
+        )
+
+    def _cancel_timer(self) -> None:
+        if self._unsub_update:
+            self._unsub_update()
+            self._unsub_update = None
+
 
     async def _debounced_update(self) -> None:
         """Wait for the state machine to settle and then update.

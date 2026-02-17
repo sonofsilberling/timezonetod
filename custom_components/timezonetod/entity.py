@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import time, timedelta, datetime, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from typing import Optional, Any
+from typing import Any
 from collections.abc import Callable
 
 
@@ -20,14 +20,14 @@ class TimezoneTodSensorCore:
         name: str,
         *,
         is_child: bool = False,
-        start_time: Optional[str] = None,
-        end_time: Optional[str] = None,
-        start_offset: Optional[timedelta] = None,
-        end_offset: Optional[timedelta] = None,
-        timezone_str: Optional[str] = None,
-        parent_entity_id: Optional[str] = None,
-        start_ref: Optional[str] = "start",
-        end_ref: Optional[str] = "end",
+        start_time: str | None = None,
+        end_time: str | None = None,
+        start_offset: timedelta | None = None,
+        end_offset: timedelta | None = None,
+        timezone_str: str | None = None,
+        parent_entity_id: str | None = None,
+        start_ref: str | None = "start",
+        end_ref: str | None = "end",
     ) -> None:
         """Initialize the core Time of Day sensor logic.
 
@@ -55,9 +55,9 @@ class TimezoneTodSensorCore:
         self._resolved_timezone_str = timezone_str
         self._parent_entity_id = parent_entity_id
 
-        self._calculated_start_utc: Optional[datetime] = None
-        self._calculated_end_utc: Optional[datetime] = None
-        self._next_update_utc: Optional[datetime] = None
+        self._calculated_start_utc: datetime | None = None
+        self._calculated_end_utc: datetime | None = None
+        self._next_update_utc: datetime | None = None
 
     @property
     def name(self) -> str:
@@ -70,22 +70,22 @@ class TimezoneTodSensorCore:
         return self._is_child
 
     @property
-    def calculated_start_utc(self) -> Optional[datetime]:
+    def calculated_start_utc(self) -> datetime | None:
         """Return the calculated start time in UTC."""
         return self._calculated_start_utc
 
     @property
-    def calculated_end_utc(self) -> Optional[datetime]:
+    def calculated_end_utc(self) -> datetime | None:
         """Return the calculated end time in UTC."""
         return self._calculated_end_utc
 
     @property
-    def next_update_utc(self) -> Optional[datetime]:
+    def next_update_utc(self) -> datetime | None:
         """Return the timestamp for the next scheduled state transition."""
         return self._next_update_utc
 
     @property
-    def parent_entity_id(self) -> Optional[str]:
+    def parent_entity_id(self) -> str | None:
         """Return the entity ID of the parent sensor."""
         return self._parent_entity_id
 
@@ -100,7 +100,7 @@ class TimezoneTodSensorCore:
         return self._end_offset
 
     @property
-    def timezone_name(self) -> Optional[str]:
+    def timezone_name(self) -> str | None:
         """Return the active timezone name (either configured or inherited)."""
         return self._resolved_timezone_str
 
@@ -122,8 +122,8 @@ class TimezoneTodSensorCore:
         self,
         now_utc: datetime,
         default_timezone: tzinfo,
-        sun_event_callback: Optional[Callable] = None,
-        parent_attributes: Optional[dict[str, Any]] = None,
+        sun_event_callback: Callable | None = None,
+        parent_attributes: dict[str, Any] | None = None,
     ) -> bool:
         """Recalculate the start, end, and next transition timestamps.
 
@@ -157,10 +157,13 @@ class TimezoneTodSensorCore:
             if not parent_attributes:
                 return False
 
-            parent_tz = parent_attributes.get("timezone")
-            if parent_tz:
-                self._resolved_timezone_str = parent_tz
-                tz = parent_tz
+            parent_tz_str = parent_attributes.get("timezone")
+            if parent_tz_str:
+                self._resolved_timezone_str = parent_tz_str
+                try:
+                    tz = ZoneInfo(parent_tz_str)
+                except (ZoneInfoNotFoundError, ValueError):
+                    tz = default_timezone
 
             try:
                 start_time_str = parent_attributes.get("start_time_utc")
@@ -211,9 +214,12 @@ class TimezoneTodSensorCore:
             current_ref_date = target_date
             start_utc, end_utc = get_window(current_ref_date)
 
-            while now_utc >= end_utc:
-                current_ref_date += timedelta(days=1)
-                start_utc, end_utc = get_window(current_ref_date)
+            for _ in range(365):
+                if now_utc >= end_utc:
+                    current_ref_date += timedelta(days=1)
+                    start_utc, end_utc = get_window(current_ref_date)
+                else:
+                    break
 
             if now_utc < start_utc:
                 prev_start, prev_end = get_window(target_date - timedelta(days=1))
