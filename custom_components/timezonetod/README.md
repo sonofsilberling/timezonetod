@@ -48,6 +48,25 @@ A Child Sensor inherits its boundaries from a Root Sensor.
 
 ---
 
+### YAML Configuration
+Here is a sample of how a YAML configuration could look like:
+
+```yaml
+timezonetod:
+  - name: "Cheap Electricity UTC"
+    start_time: "01:00:00"
+    end_time: "05:00:00"
+    timezone: "UTC"
+  
+  - name: "Tariff Beginning"
+    is_child: true
+    parent_entity: "binary_sensor.cheap_electricity_utc"
+    start_ref: "start"
+    start_offset: 0
+    end_ref: "start"
+    end_offset: 1800
+```
+
 ##    Developer & Unit Testing
 This integration is built with a decoupled logic core (`entity.py`), allowing the time calculation engine to be tested independently of the Home Assistant state machine.
 

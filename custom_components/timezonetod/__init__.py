@@ -8,6 +8,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
+from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 
@@ -92,3 +93,31 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         None
     """
     await hass.config_entries.async_reload(entry.entry_id)
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up the Timezone Time of Day component from YAML.
+    
+    This function handles the legacy YAML configuration by initiating a config flow
+    import for each entry found under the integration's domain in configuration.yaml.
+    
+    Args:
+        hass: The Home Assistant instance.
+        config: The full configuration dictionary from configuration.yaml.
+        
+    Returns:
+        bool: True if setup was initiated successfully.
+    """
+    if DOMAIN not in config:
+        return True
+
+    for entry_conf in config[DOMAIN]:
+        # This triggers the 'async_step_import' in your config_flow.py
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": config_entries.SOURCE_IMPORT},
+                data=entry_conf,
+            )
+        )
+
+    return True    

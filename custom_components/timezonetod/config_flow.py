@@ -12,6 +12,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
+from homeassistant.config_entries import SOURCE_IMPORT
 
 # Selectors
 from homeassistant.helpers.selector import (
@@ -420,3 +421,27 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
             )
 
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    async def async_step_import(self, import_data: dict[str, Any]) -> FlowResult:
+        """Handle import from YAML.
+        
+        This step is triggered by async_setup when it finds configuration in
+        configuration.yaml. It validates that the sensor is not already
+        configured and then creates a new config entry.
+        
+        Args:
+            import_data: The configuration data to be imported.
+            
+        Returns:
+            FlowResult: An abort result if already configured, or an entry creation result.
+        """
+        # Check if we already have an entry with this name to avoid duplicates
+        for entry in self._async_current_entries():
+            if entry.data.get(CONF_NAME) == import_data.get(CONF_NAME):
+                return self.async_abort(reason="already_configured")
+
+        # Create the entry
+        return self.async_create_entry(
+            title=import_data[CONF_NAME], 
+            data=import_data
+        )
