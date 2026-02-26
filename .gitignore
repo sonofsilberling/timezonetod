@@ -28,3 +28,6 @@ env/
 .storage/
 .cloud/
 ha-custom-component.code-workspace
+
+
+*Zone.Identifier
