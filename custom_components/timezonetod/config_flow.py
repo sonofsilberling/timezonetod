@@ -7,13 +7,11 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, SOURCE_IMPORT
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import ConfigFlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
-from homeassistant.config_entries import SOURCE_IMPORT
 
 # Selectors
 from homeassistant.helpers.selector import (
@@ -197,7 +195,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         # Build a sorted list of timezones for the selector
-        get_timezones = _get_timezones()
+        get_timezones = await self.hass.async_add_executor_job(_get_timezones)
 
         _LOGGER.debug("Got timezones")
 
