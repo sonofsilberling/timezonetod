@@ -305,6 +305,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         Returns:
             TimezoneTodOptionsFlow: The options flow handler instance.
         """
+        return TimezoneTodOptionsFlow()
 
 
 class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
