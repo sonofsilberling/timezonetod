@@ -7,9 +7,10 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import ConfigFlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from homeassistant.config_entries import SOURCE_IMPORT
@@ -115,7 +116,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial user step: sensor identity and type selection.
         
         This is the first step in the configuration flow where the user provides:
@@ -162,7 +163,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_root(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Configure a root sensor's schedule and timezone.
         
         Root sensors define their own time boundaries using:
@@ -228,7 +229,7 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_child(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Configure a child sensor's parent relationship and time offsets.
         
         Child sensors inherit their time boundaries from a parent root sensor,
@@ -288,6 +289,35 @@ class TimezoneTodConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="child", data_schema=child_schema)
 
+    async def async_step_import(self, import_data: dict[str, Any]) -> ConfigFlowResult:
+        """Handle import from YAML.
+        
+        This step is triggered by async_setup when it finds configuration in
+        configuration.yaml. It validates that the sensor is not already
+        configured and then creates a new config entry.
+        
+        Args:
+            import_data: The configuration data to be imported.
+            
+        Returns:
+            FlowResult: An abort result if already configured, or an entry creation result.
+        """
+        # Check if we already have an entry with this name to avoid duplicates
+        for entry in self._async_current_entries():
+            if entry.data.get(CONF_NAME) == import_data.get(CONF_NAME):
+                return self.async_abort(reason="already_configured")
+
+        if not import_data.get(CONF_IS_CHILD):
+            if not validate_time_format(import_data.get(CONF_START_TIME, "")) or \
+               not validate_time_format(import_data.get(CONF_END_TIME, "")):
+                return self.async_abort(reason="invalid_time_format")            
+
+        # Create the entry
+        return self.async_create_entry(
+            title=import_data[CONF_NAME], 
+            data=import_data
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -320,7 +350,7 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the options flow initialization step.
         
         Presents a form with fields appropriate to the sensor type:
@@ -362,13 +392,16 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
 
         is_child = current_config.get(CONF_IS_CHILD, False)
 
-        get_timezones = _get_timezones()
+        get_timezones = await self.hass.async_add_executor_job(_get_timezones)
 
         if is_child:
             valid_parents = await _get_valid_parents(self.hass)
             schema = vol.Schema(
                 {
-                    vol.Required(CONF_PARENT_ENTITY): SelectSelector(
+                    vol.Required(
+                        CONF_PARENT_ENTITY,
+                        default=current_config.get(CONF_PARENT_ENTITY),
+                    ): SelectSelector(
                         SelectSelectorConfig(
                             options=valid_parents, mode=SelectSelectorMode.DROPDOWN
                         )
@@ -410,7 +443,10 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
                         CONF_END_TIME, default=current_config.get(CONF_END_TIME)
                     ): TextSelector(),
                     vol.Optional(
-                        CONF_TIMEZONE, default=current_config.get(CONF_TIMEZONE)
+                        CONF_TIMEZONE,
+                        default=current_config.get(
+                            CONF_TIMEZONE, self.hass.config.time_zone
+                        ),
                     ): SelectSelector(
                         SelectSelectorConfig(
                             options=get_timezones,
@@ -422,27 +458,3 @@ class TimezoneTodOptionsFlow(config_entries.OptionsFlow):
             )
 
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
-
-    async def async_step_import(self, import_data: dict[str, Any]) -> FlowResult:
-        """Handle import from YAML.
-        
-        This step is triggered by async_setup when it finds configuration in
-        configuration.yaml. It validates that the sensor is not already
-        configured and then creates a new config entry.
-        
-        Args:
-            import_data: The configuration data to be imported.
-            
-        Returns:
-            FlowResult: An abort result if already configured, or an entry creation result.
-        """
-        # Check if we already have an entry with this name to avoid duplicates
-        for entry in self._async_current_entries():
-            if entry.data.get(CONF_NAME) == import_data.get(CONF_NAME):
-                return self.async_abort(reason="already_configured")
-
-        # Create the entry
-        return self.async_create_entry(
-            title=import_data[CONF_NAME], 
-            data=import_data
-        )
